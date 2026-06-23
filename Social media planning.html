@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJJS Post Workflow — Interactive Demo</title>
+<style>
+  :root{
+    --indigo:#4f46e5; --violet:#7c3aed; --bg:#eef2f7; --card:#ffffff;
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --media:#2563eb; --content:#d97706; --assembly:#059669;
+    --done:#16a34a; --prog:#2563eb; --ready:#7c3aed; --blocked:#dc2626; --idle:#94a3b8;
+    --shadow:0 10px 30px -12px rgba(15,23,42,.25);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  /* ---------- Top bar ---------- */
+  header{background:linear-gradient(100deg,var(--indigo),var(--violet));color:#fff;
+    padding:14px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
+  .logo{font-weight:800;font-size:18px;letter-spacing:.3px;display:flex;align-items:center;gap:10px}
+  .logo .dot{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.18);
+    display:grid;place-items:center;font-size:16px}
+  .spacer{flex:1}
+  .whoami{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.14);
+    padding:7px 12px;border-radius:11px;font-size:13px}
+  .whoami select{border:0;background:#fff;color:var(--ink);font-weight:600;
+    padding:6px 9px;border-radius:8px;font-size:13px;cursor:pointer}
+  .role-pill{background:rgba(255,255,255,.22);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  /* ---------- Tabs ---------- */
+  nav{display:flex;gap:4px;background:#fff;padding:0 18px;border-bottom:1px solid var(--line);
+    position:sticky;top:60px;z-index:40;overflow-x:auto}
+  nav button{border:0;background:none;padding:14px 16px;font-size:13.5px;font-weight:600;
+    color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  nav button.active{color:var(--indigo);border-bottom-color:var(--indigo)}
+  nav .count{background:var(--bg);color:var(--muted);border-radius:20px;padding:1px 8px;font-size:11px;margin-left:6px;font-weight:700}
+  nav button.active .count{background:#ede9fe;color:var(--indigo)}
+  main{padding:22px;max-width:1240px;margin:0 auto}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  h2.section{font-size:20px;margin-bottom:4px}
+  .sub{color:var(--muted);margin-bottom:18px;font-size:13px}
+  /* ---------- Cards ---------- */
+  .grid{display:grid;gap:14px}
+  .q-grid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+  .task{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;gap:11px}
+  .task .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .postno{font-weight:800;font-size:15px}
+  .theme{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .stage-tag{font-size:11px;font-weight:800;padding:4px 10px;border-radius:8px;color:#fff;white-space:nowrap}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;font-size:11.5px;color:var(--muted)}
+  .meta span{background:var(--bg);padding:3px 8px;border-radius:7px}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .p-done{background:#dcfce7;color:var(--done)} .p-prog{background:#dbeafe;color:var(--prog)}
+  .p-ready{background:#ede9fe;color:var(--ready)} .p-idle{background:#f1f5f9;color:var(--idle)}
+  .p-blocked{background:#fee2e2;color:var(--blocked)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+  button.btn{border:0;border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .btn-primary{background:var(--indigo);color:#fff}
+  .btn-ghost{background:var(--bg);color:var(--ink)}
+  .btn-warn{background:#fff7ed;color:#c2410c}
+  .btn-open{background:#ecfeff;color:#0e7490}
+  button.btn:hover{filter:brightness(.96)}
+  .empty{background:#fff;border:2px dashed var(--line);border-radius:14px;padding:40px;text-align:center;color:var(--muted)}
+  /* ---------- Kanban ---------- */
+  .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px}
+  .col{min-width:230px;flex:1;background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:10px}
+  .col h4{font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .col h4 .n{background:#fff;border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11px}
+  .kcard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--idle);border-radius:10px;padding:10px;margin-bottom:9px;cursor:pointer}
+  .kcard:hover{box-shadow:var(--shadow)}
+  .kcard .pn{font-weight:800;font-size:13px}
+  .kcard .who{font-size:11px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px}
+  .ava{width:18px;height:18px;border-radius:50%;background:var(--indigo);color:#fff;font-size:9px;display:grid;place-items:center;font-weight:700}
+  .track-head{display:flex;gap:10px;margin:6px 0 16px;flex-wrap:wrap}
+  .track-chip{font-size:11px;font-weight:700;padding:5px 11px;border-radius:8px;color:#fff;display:flex;align-items:center;gap:6px}
+  /* ---------- Timeline / detail ---------- */
+  .detail-head{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px}
+  .picker{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .picker select{padding:9px 12px;border-radius:9px;border:1px solid var(--line);font-size:13px;font-weight:600}
+  .tl{position:relative;padding-left:26px}
+  .tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--line)}
+  .tl-item{position:relative;padding:10px 0}
+  .tl-item::before{content:"";position:absolute;left:-21px;top:14px;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--idle)}
+  .tl-item.done::before{border-color:var(--done);background:var(--done)}
+  .tl-item.prog::before{border-color:var(--prog)}
+  .tl-item.ready::before{border-color:var(--ready)}
+  .tl-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .tl-name{font-weight:700}
+  .tl-sub{font-size:11.5px;color:var(--muted)}
+  /* docs / media */
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px}
+  .panel h3{font-size:15px;margin-bottom:4px}
+  .panel .ph{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  .docflow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
+  .docbox{flex:1;min-width:180px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  .docbox .dh{padding:9px 12px;font-weight:800;font-size:12px;color:#fff;display:flex;justify-content:space-between;align-items:center}
+  .docbox .db{padding:12px;font-size:11.5px;color:#475569;height:120px;overflow:hidden;position:relative;background:#fcfcfd}
+  .docbox .db.locked{filter:blur(2.5px);user-select:none}
+  .lockmsg{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-weight:700;font-size:12px;background:rgba(248,250,252,.6)}
+  .docbox .df{padding:8px 12px;border-top:1px solid var(--line);font-size:11px}
+  .arrow{display:grid;place-items:center;color:var(--muted);font-size:20px;font-weight:800}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:9px}
+  .thumb{aspect-ratio:1;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;cursor:pointer;position:relative;overflow:hidden}
+  .thumb span{position:relative;z-index:1}
+  .gal-group{margin-bottom:14px}
+  .gal-group h5{font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-bottom:8px}
+  /* pipeline */
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  th,td{text-align:left;padding:12px 14px;font-size:13px;border-bottom:1px solid var(--line)}
+  th{background:#f8fafc;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .dep{font-size:11px;color:var(--muted)}
+  /* toast / whatsapp */
+  #toasts{position:fixed;right:20px;bottom:20px;z-index:100;display:flex;flex-direction:column;gap:10px;width:320px}
+  .toast{background:#fff;border:1px solid var(--line);border-left:5px solid #25d366;border-radius:12px;
+    padding:12px 14px;box-shadow:0 16px 40px -12px rgba(0,0,0,.35);animation:slide .3s ease}
+  @keyframes slide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+  .toast .th2{display:flex;align-items:center;gap:8px;font-weight:800;font-size:12.5px;color:#128c4b;margin-bottom:4px}
+  .toast .wa{width:20px;height:20px;border-radius:50%;background:#25d366;color:#fff;display:grid;place-items:center;font-size:12px}
+  .toast .body{font-size:12.5px;color:#334155}
+  .toast .to{font-size:11px;color:var(--muted);margin-top:5px}
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;place-items:center;z-index:90;padding:20px}
+  .modal-bg.open{display:grid}
+  .modal{background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:85vh;overflow:auto;box-shadow:var(--shadow)}
+  .modal .mh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .modal .mh h3{font-size:16px}
+  .modal .mb{padding:20px}
+  .modal .x{cursor:pointer;font-size:20px;color:var(--muted);border:0;background:none}
+  .note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 13px;font-size:12.5px;margin-top:14px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:var(--muted)}
+  .legend b{color:var(--ink)}
+  .banner{background:linear-gradient(100deg,#eef2ff,#f5f3ff);border:1px solid #ddd6fe;border-radius:14px;padding:16px 18px;margin-bottom:20px;font-size:13px;color:#4338ca}
+  .banner b{color:var(--violet)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="dot">🪷</div> DJJS Post Workflow</div>
+  <div class="spacer"></div>
+  <div class="whoami">
+    <span>👤 Signed in as</span>
+    <select id="userSel" onchange="switchUser()"></select>
+    <span class="role-pill" id="roleP">—</span>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-v="queue" onclick="go('queue',this)">📥 My Queue <span class="count" id="qCount">0</span></button>
+  <button data-v="board" onclick="go('board',this)">🗂️ Admin Board</button>
+  <button data-v="detail" onclick="go('detail',this)">🔎 Post Detail</button>
+  <button data-v="pipeline" onclick="go('pipeline',this)">⚙️ Pipeline (Admin builds flow)</button>
+</nav>
+
+<main>
+  <!-- QUEUE -->
+  <section class="view active" id="v-queue">
+    <div class="banner" id="queueBanner"></div>
+    <h2 class="section">My Queue</h2>
+    <p class="sub">Only the tasks that are <b>yours</b> and <b>ready to work on now</b>. No sheet-scanning — you log in and your work is here. Mark one done and watch the next person get pinged on WhatsApp instantly. ↘️</p>
+    <div class="grid q-grid" id="queueGrid"></div>
+  </section>
+
+  <!-- BOARD -->
+  <section class="view" id="v-board">
+    <h2 class="section">Admin Board — everything, everywhere, live</h2>
+    <p class="sub">Every (post × stage) sits in exactly one column. Bottlenecks are obvious at a glance. Admin can click any card to reassign or complete on someone's behalf.</p>
+    <div class="track-head">
+      <div class="track-chip" style="background:var(--media)">🎥 Media track</div>
+      <div class="track-chip" style="background:var(--content)">✍️ Content track</div>
+      <div class="track-chip" style="background:var(--assembly)">🎨 Assembly</div>
+    </div>
+    <div class="legend">
+      <span>● <b>Status:</b></span>
+      <span><span class="pill p-done">Done</span></span>
+      <span><span class="pill p-prog">In progress</span></span>
+      <span><span class="pill p-ready">Ready</span></span>
+      <span><span class="pill p-idle">Waiting</span></span>
+    </div>
+    <div class="board" id="board"></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section class="view" id="v-detail">
+    <h2 class="section">Post Detail</h2>
+    <p class="sub">Pick a post to see its full timeline, the copy-forward content docs, and the media gallery — all without opening Drive.</p>
+    <div class="picker">
+      <span>📄 Post:</span>
+      <select id="postSel" onchange="renderDetail()"></select>
+    </div>
+    <div id="detailBody"></div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section class="view" id="v-pipeline">
+    <h2 class="section">Pipeline Config — the flow admin controls</h2>
+    <p class="sub">The stages aren't hardcoded. Admin edits this table; add a row and a new stage appears everywhere automatically (new task, new folder, new column on the board).</p>
+    <table id="pipeTable"></table>
+    <div class="note">💡 Example: DJJS adds a regional post needing translation → admin adds a <b>“Translation”</b> row here (role: Translator, depends on: Proofreading) and every new post gets that stage — <b>no code change</b>.</div>
+  </section>
+</main>
+
+<div id="toasts"></div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target.id==='modalBg')closeModal()">
+  <div class="modal">
+    <div class="mh"><h3 id="modalTitle">—</h3><button class="x" onclick="closeModal()">✕</button></div>
+    <div class="mb" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ============ MOCK DATA (stands in for the 4 Sheet tabs) ============ */
+const TRACK={media:'--media',content:'--content',assembly:'--assembly'};
+// PIPELINE CONFIG tab
+const STAGES=[
+  {key:'raw',      name:'Raw Photos/Video', track:'media',    role:'Photographer', dep:[],                 sla:24},
+  {key:'selected', name:'Selected',         track:'media',    role:'Selector',     dep:['raw'],            sla:24},
+  {key:'edited',   name:'Edited',           track:'media',    role:'Media Editor', dep:['selected'],       sla:48},
+  {key:'writing',  name:'Writing',          track:'content',  role:'Writer',       dep:[],                 sla:24},
+  {key:'editing',  name:'Editing',          track:'content',  role:'Content Editor',dep:['writing'],       sla:24},
+  {key:'proof',    name:'Proofreading',     track:'content',  role:'Proofreader',  dep:['editing'],        sla:24},
+  {key:'design',   name:'Design',           track:'assembly', role:'Designer',     dep:['edited','proof'], sla:48},
+  {key:'thumb',    name:'Thumbnail',        track:'assembly', role:'Designer',     dep:['design'],         sla:12},
+  {key:'ready',    name:'Ready to Post',    track:'assembly', role:'Admin',        dep:['thumb'],          sla:12},
+  {key:'posted',   name:'Posted',           track:'assembly', role:'Social',       dep:['ready'],          sla:6},
+];
+const stageOf=k=>STAGES.find(s=>s.key===k);
+
+// USERS tab  (role pools for round-robin)
+const USERS=[
+  {email:'admin',     name:'Admin (You)',  role:'Admin'},
+  {email:'arjun',     name:'Arjun',        role:'Photographer'},
+  {email:'meera',     name:'Meera',        role:'Photographer'},
+  {email:'kavya',     name:'Kavya',        role:'Selector'},
+  {email:'dev',       name:'Dev',          role:'Media Editor'},
+  {email:'nisha',     name:'Nisha',        role:'Media Editor'},
+  {email:'priya',     name:'Priya',        role:'Writer'},
+  {email:'amit',      name:'Amit',         role:'Writer'},
+  {email:'raj',       name:'Raj',          role:'Content Editor'},
+  {email:'tara',      name:'Tara',         role:'Proofreader'},
+  {email:'vikram',    name:'Vikram',       role:'Designer'},
+  {email:'anita',     name:'Anita',        role:'Designer'},
+  {email:'rohit',     name:'Rohit',        role:'Social'},
+];
+const userByEmail=e=>USERS.find(u=>u.email===e);
+const poolFor=role=>USERS.filter(u=>u.role===role);
+
+// POSTS tab
+const POSTS=[
+  {no:'P0042', program:'Sankaran Camp', branch:'Delhi',     state:'Delhi',     theme:'Yoga & Meditation Drive', date:'2026-06-20'},
+  {no:'P0043', program:'Tree Plantation',branch:'Pune',     state:'Maharashtra',theme:'Sanrakshan — Green Earth',date:'2026-06-21'},
+  {no:'P0044', program:'Blood Donation', branch:'Jaipur',   state:'Rajasthan', theme:'Save Lives Initiative',   date:'2026-06-22'},
+  {no:'P0045', program:'Satsang',        branch:'Indore',   state:'MP',        theme:'Inner Awakening',         date:'2026-06-22'},
+  {no:'P0046', program:'Women Empowerment',branch:'Ludhiana',state:'Punjab',   theme:'Santulan for Women',      date:'2026-06-23'},
+];
+
+// progress profiles: how far each post has moved (index into STAGES that is the "frontier")
+const PROFILE={P0042:8, P0043:5, P0044:3, P0045:6, P0046:1};
+
+/* ---- build TASKS tab from profiles, with round-robin assignment ---- */
+let TASKS=[];
+(function buildTasks(){
+  const rr={}; // round-robin pointer per role
+  function assign(role){
+    const pool=poolFor(role); if(!pool.length) return 'admin';
+    rr[role]=(rr[role]==null?-1:rr[role]); rr[role]=(rr[role]+1)%pool.length;
+    return pool[rr[role]].email;
+  }
+  POSTS.forEach(p=>{
+    const frontier=PROFILE[p.no];
+    STAGES.forEach((s,i)=>{
+      let status;
+      if(i<frontier) status='done';
+      else if(i===frontier) status='active'; // active = either in-progress or ready (decided below)
+      else status='waiting';
+      TASKS.push({
+        id:p.no+'-'+s.key, post:p.no, stage:s.key,
+        assignee:assign(s.role), status, doc:'', updatedBy:'', when:''
+      });
+    });
+  });
+  // set timestamps for done items
+  TASKS.filter(t=>t.status==='done').forEach((t,i)=>{t.when='Jun '+(15+(i%6))+', '+(9+(i%8))+':'+(i%6)+'0';t.updatedBy=t.assignee;});
+})();
+
+function depsMet(task){
+  const s=stageOf(task.stage);
+  return s.dep.every(d=>{const dt=TASKS.find(t=>t.post===task.post&&t.stage===d);return dt&&dt.status==='done';});
+}
+// effective display status
+function effStatus(t){
+  if(t.status==='done') return 'done';
+  if(t.status==='inprogress') return 'prog';
+  if(t.status==='blocked') return 'blocked';
+  if(t.status==='active'||t.status==='ready') return depsMet(t)?'ready':'idle';
+  return depsMet(t)?'ready':'idle';
+}
+
+/* ============ STATE ============ */
+let CURRENT='admin';
+
+/* ============ HELPERS ============ */
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
+const initials=n=>n.replace(/\(.*\)/,'').trim().split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
+function statusPill(st){
+  const map={done:['p-done','✓ Done'],prog:['p-prog','● In progress'],ready:['p-ready','▶ Ready now'],idle:['p-idle','◌ Waiting'],blocked:['p-blocked','⚑ Blocked']};
+  const[c,l]=map[st];return `<span class="pill ${c}">${l}</span>`;
+}
+
+/* ============ RENDER: QUEUE ============ */
+function renderQueue(){
+  const me=userByEmail(CURRENT);
+  const grid=document.getElementById('queueGrid');
+  const isAdmin=me.role==='Admin';
+  // tasks assigned to me, not done; admin sees all actionable
+  let mine=TASKS.filter(t=>{
+    const es=effStatus(t);
+    if(es==='done') return false;
+    if(isAdmin) return es==='ready'||es==='prog'||es==='blocked';
+    return t.assignee===CURRENT && (es==='ready'||es==='prog');
+  });
+  document.getElementById('qCount').textContent=mine.length;
+  const banner=document.getElementById('queueBanner');
+  banner.innerHTML = isAdmin
+    ? `👑 You're <b>Admin</b> — this queue shows every task that's actionable right now across all posts. Switch the user dropdown (top-right) to see what an individual writer / photographer / designer sees.`
+    : `👋 Hi <b>${me.name}</b> (${me.role}) — below is only <b>your</b> work that's ready. Try <b>Mark Done</b> on one and watch the next teammate get a WhatsApp ping.`;
+  if(!mine.length){grid.innerHTML=`<div class="empty">🎉 Nothing pending for you right now. Try switching to another user (top-right) — e.g. <b>Priya (Writer)</b> or <b>Vikram (Designer)</b>.</div>`;return;}
+  grid.innerHTML=mine.map(t=>{
+    const p=POSTS.find(x=>x.no===t.post),s=stageOf(t.stage),es=effStatus(t);
+    const col=cssv(TRACK[s.track]);
+    const docBtn=s.track==='content'?`<button class="btn btn-open" onclick="openDoc('${t.id}')">📄 Open ${s.name} doc</button>`
+                : s.track==='media'?`<button class="btn btn-open" onclick="openMedia('${t.post}')">🖼️ Open media</button>`:'';
+    return `<div class="task">
+      <div class="top">
+        <div><div class="postno">${t.post} · ${p.program}</div><div class="theme">${p.theme}</div></div>
+        <span class="stage-tag" style="background:${col}">${s.name}</span>
+      </div>
+      <div class="meta"><span>📍 ${p.branch}, ${p.state}</span><span>📅 ${p.date}</span><span>⏱ SLA ${s.sla}h</span></div>
+      <div>${statusPill(es)} &nbsp; <span class="tl-sub">assigned to you via round-robin</span></div>
+      <div class="actions">
+        ${docBtn}
+        <button class="btn btn-primary" onclick="markDone('${t.id}')">✓ Mark Done</button>
+        <button class="btn btn-warn" onclick="imBusy('${t.id}')">⚠ I'm busy</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ RENDER: BOARD ============ */
+function renderBoard(){
+  const board=document.getElementById('board');
+  board.innerHTML=STAGES.map(s=>{
+    const col=cssv(TRACK[s.track]);
+    const cards=TASKS.filter(t=>t.stage===s.key&&effStatus(t)!=='done'&&effStatus(t)!=='idle');
+    const doneN=TASKS.filter(t=>t.stage===s.key&&effStatus(t)==='done').length;
+    return `<div class="col">
+      <h4><span style="color:${col}">${s.name}</span><span class="n">${cards.length} active · ${doneN}✓</span></h4>
+      ${cards.length?cards.map(t=>{
+        const p=POSTS.find(x=>x.no===t.post),u=userByEmail(t.assignee),es=effStatus(t);
+        const bc=es==='ready'?cssv('--ready'):es==='prog'?cssv('--prog'):es==='blocked'?cssv('--blocked'):col;
+        return `<div class="kcard" style="border-left-color:${bc}" onclick="openTaskAdmin('${t.id}')">
+          <div class="pn">${t.post}</div>
+          <div class="who"><span class="ava">${initials(u.name)}</span>${u.name} · ${statusPill(es)}</div>
+        </div>`;
+      }).join(''):`<div style="color:var(--muted);font-size:12px;padding:6px">—</div>`}
+    </div>`;
+  }).join('');
+}
+
+/* ============ RENDER: DETAIL ============ */
+function renderDetail(){
+  const no=document.getElementById('postSel').value;
+  const p=POSTS.find(x=>x.no===no);
+  const tasks=STAGES.map(s=>TASKS.find(t=>t.post===no&&t.stage===s.key));
+  const body=document.getElementById('detailBody');
+  body.innerHTML=`
+    <div class="detail-head">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div><div class="postno" style="font-size:18px">${p.no} · ${p.program}</div>
+        <div class="theme">${p.theme}</div></div>
+        <div class="meta"><span>📍 ${p.branch}, ${p.state}</span><span>📅 ${p.date}</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>⏱ Stage timeline — who did what, when</h3>
+      <p class="ph">Every status flip is stamped automatically. No more guessing which level a post is stuck at.</p>
+      <div class="tl">
+        ${tasks.map(t=>{const s=stageOf(t.stage),es=effStatus(t),u=userByEmail(t.assignee);
+          return `<div class="tl-item ${es}">
+            <div class="tl-row">
+              <div><span class="tl-name">${s.name}</span> &nbsp;${statusPill(es)}</div>
+              <div class="tl-sub">${es==='done'?('✓ '+u.name+' · '+t.when):('owner: '+u.name)}</div>
+            </div>
+          </div>`;}).join('')}
+      </div>
+    </div>
+    ${contentDocsPanel(no)}
+    ${mediaPanel(no)}
+  `;
+}
+function contentDocsPanel(no){
+  const w=TASKS.find(t=>t.post===no&&t.stage==='writing'),
+        e=TASKS.find(t=>t.post===no&&t.stage==='editing'),
+        pr=TASKS.find(t=>t.post===no&&t.stage==='proof');
+  const box=(t,label,sample)=>{
+    const es=effStatus(t),u=userByEmail(t.assignee),col=cssv('--content');
+    const reached=es==='done'||es==='prog'||es==='ready';
+    return `<div class="docbox">
+      <div class="dh" style="background:${col}">${label} <span style="font-weight:600;opacity:.85">${es==='done'?'✓':''}</span></div>
+      <div class="db ${reached?'':'locked'}">${sample}${reached?'':'<div class="lockmsg">🔒 unlocks after previous stage</div>'}</div>
+      <div class="df">${reached?('👤 '+u.name+(es==='done'?' · done '+t.when:' · editing now')):'waiting'}</div>
+    </div>`;
+  };
+  return `<div class="panel">
+    <h3>📑 Content track — 3 separate copy-forward docs</h3>
+    <p class="ph">Writer's text is copied into the Editing doc on hand-off, then into the Proofreading doc — so each person opens a doc that already has the previous content. Each doc stays frozen as that stage's archive.</p>
+    <div class="docflow">
+      ${box(w,'1 · Writing','“Under the guidance of Param Pujya Shri Ashutosh Maharaj Ji, DJJS Delhi organised a transformative yoga & meditation camp drawing 400+ participants…”')}
+      <div class="arrow">→</div>
+      ${box(e,'2 · Editing','“Under the guidance of His Holiness Ashutosh Maharaj Ji, DJJS Delhi organised a <b>transformative yoga &amp; meditation camp</b> that drew over 400 participants…”')}
+      <div class="arrow">→</div>
+      ${box(pr,'3 · Proofreading','“Under the guidance of His Holiness Ashutosh Maharaj Ji, DJJS Delhi organised a transformative yoga &amp; meditation camp that drew over 400 participants, fostering inner peace…”')}
+    </div>
+    <div class="note">📌 In the real app each box is a live embedded Google Doc preview + an <b>“Open to edit”</b> button — the team never opens Drive folders manually.</div>
+  </div>`;
+}
+function mediaPanel(no){
+  const groups=[['Raw','#475569',9],['Selected','#2563eb',5],['Selected (Edited)','#059669',3]];
+  return `<div class="panel">
+    <h3>🖼️ Media track — gallery pulled live from Drive</h3>
+    <p class="ph">Raw → Selected → Edited, shown as thumbnails via the Drive API. Click to preview full-size — no Drive navigation.</p>
+    ${groups.map(([name,c,n])=>`<div class="gal-group"><h5>${name} folder · ${n} files</h5>
+      <div class="gallery">${Array.from({length:n}).map((_,i)=>`<div class="thumb" style="background:linear-gradient(135deg,${c},${c}aa)" onclick="alert('Full-size preview would open here (Drive webContentLink).')"><span>${name[0]}${i+1}</span></div>`).join('')}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* ============ RENDER: PIPELINE ============ */
+function renderPipeline(){
+  const t=document.getElementById('pipeTable');
+  t.innerHTML=`<tr><th>Order</th><th>Stage</th><th>Track</th><th>Required role</th><th>Depends on</th><th>SLA</th></tr>`+
+  STAGES.map((s,i)=>{const col=cssv(TRACK[s.track]);
+    return `<tr>
+      <td>${i+1}</td>
+      <td><b>${s.name}</b></td>
+      <td><span class="stage-tag" style="background:${col};font-size:10px">${s.track}</span></td>
+      <td>${s.role}</td>
+      <td class="dep">${s.dep.length?s.dep.map(d=>stageOf(d).name).join(', '):'— (can start immediately)'}</td>
+      <td>${s.sla}h</td>
+    </tr>`;}).join('');
+}
+
+/* ============ ACTIONS ============ */
+function markDone(id){
+  const t=TASKS.find(x=>x.id===id);
+  t.status='done'; t.updatedBy=CURRENT; t.when='just now';
+  // find newly-ready next stages in same post and ping their assignees
+  const newlyReady=TASKS.filter(x=>x.post===t.post&&x.status!=='done'&&effStatus(x)==='ready'&&!x._pinged);
+  refreshAll();
+  // figure out which became ready *because* of this
+  const nexts=STAGES.filter(s=>s.dep.includes(t.stage));
+  nexts.forEach(s=>{
+    const nt=TASKS.find(x=>x.post===t.post&&x.stage===s.key);
+    if(nt&&effStatus(nt)==='ready'){
+      const u=userByEmail(nt.assignee);
+      whatsapp(u.name,`🔔 ${t.post} is ready for ${s.name}. Open the app to start.`);
+    }
+  });
+  toastInfo(`✓ ${stageOf(t.stage).name} for ${t.post} marked done by ${userByEmail(CURRENT).name}.`);
+}
+function imBusy(id){
+  const t=TASKS.find(x=>x.id===id);
+  const pool=poolFor(stageOf(t.stage).role).filter(u=>u.email!==t.assignee&&u.role!=='Admin');
+  const old=userByEmail(t.assignee).name;
+  if(pool.length){t.assignee=pool[0].email;}
+  refreshAll();
+  whatsapp('Admin',`⚠ ${old} is busy on ${t.post} · ${stageOf(t.stage).name}. Reassigned to ${userByEmail(t.assignee).name}.`);
+  if(pool.length) whatsapp(userByEmail(t.assignee).name,`🔔 ${t.post} · ${stageOf(t.stage).name} was reassigned to you.`);
+  toastInfo(`↪ Reassigned ${t.post} · ${stageOf(t.stage).name} from ${old} to ${userByEmail(t.assignee).name}.`);
+}
+function openTaskAdmin(id){
+  const t=TASKS.find(x=>x.id===id),s=stageOf(t.stage),pool=poolFor(s.role);
+  document.getElementById('modalTitle').textContent=`${t.post} · ${s.name}`;
+  document.getElementById('modalBody').innerHTML=`
+    <div class="meta" style="margin-bottom:14px"><span>Track: ${t.track||s.track}</span><span>Role: ${s.role}</span><span>${statusPill(effStatus(t))}</span></div>
+    <p style="margin-bottom:8px;font-weight:700">Reassign (admin override)</p>
+    <select id="reSel" style="padding:9px 12px;border-radius:9px;border:1px solid var(--line);width:100%;margin-bottom:14px">
+      ${pool.map(u=>`<option value="${u.email}" ${u.email===t.assignee?'selected':''}>${u.name}</option>`).join('')}
+    </select>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="doReassign('${id}')">↪ Reassign</button>
+      <button class="btn btn-ghost" onclick="adminComplete('${id}')">✓ Complete on their behalf</button>
+    </div>
+    <div class="note">As <b>Admin</b> you can reassign anyone or complete a stage for them. Round-robin order stays fair (override doesn't shift the rotation pointer).</div>`;
+  document.getElementById('modalBg').classList.add('open');
+}
+function doReassign(id){const t=TASKS.find(x=>x.id===id);const v=document.getElementById('reSel').value;const old=userByEmail(t.assignee).name;t.assignee=v;closeModal();refreshAll();whatsapp(userByEmail(v).name,`🔔 ${t.post} · ${stageOf(t.stage).name} assigned to you by Admin.`);toastInfo(`↪ ${t.post} · ${stageOf(t.stage).name}: ${old} → ${userByEmail(v).name}`);}
+function adminComplete(id){closeModal();markDone(id);}
+function openDoc(id){const t=TASKS.find(x=>x.id===id),s=stageOf(t.stage);
+  document.getElementById('modalTitle').textContent=`${t.post} · ${s.name} doc`;
+  document.getElementById('modalBody').innerHTML=`
+    <p class="ph" style="color:var(--muted);margin-bottom:12px">This is where the embedded Google Doc loads. The previous stage's content is already copied in, so you just continue.</p>
+    <div style="border:1px solid var(--line);border-radius:10px;padding:16px;font-size:13px;line-height:1.7;background:#fcfcfd">
+      <b>${POSTS.find(p=>p.no===t.post).program} — ${POSTS.find(p=>p.no===t.post).theme}</b><br><br>
+      Under the guidance of His Holiness Ashutosh Maharaj Ji, DJJS ${POSTS.find(p=>p.no===t.post).branch} organised a transformative programme that drew over 400 participants, fostering inner peace and community spirit…
+      <span style="color:var(--muted)">[ you edit directly here — Google autosaves ]</span>
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="closeModal();markDone('${id}')">✓ Save & Mark Done</button>
+    </div>`;
+  document.getElementById('modalBg').classList.add('open');
+}
+function openMedia(no){go('detail');document.getElementById('postSel').value=no;renderDetail();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v==='detail'));
+  window.scrollTo({top:9999,behavior:'smooth'});}
+
+/* ============ WHATSAPP / TOASTS ============ */
+function whatsapp(toName,msg){
+  const wrap=document.getElementById('toasts');
+  const el=document.createElement('div');el.className='toast';
+  el.innerHTML=`<div class="th2"><span class="wa">✆</span> WhatsApp sent</div>
+    <div class="body">${msg}</div><div class="to">→ to ${toName} · via gateway (UltraMsg/Cloud API)</div>`;
+  wrap.appendChild(el);setTimeout(()=>{el.style.opacity=0;el.style.transition='.4s';setTimeout(()=>el.remove(),400);},5200);
+}
+function toastInfo(msg){
+  const wrap=document.getElementById('toasts');
+  const el=document.createElement('div');el.className='toast';el.style.borderLeftColor='#4f46e5';
+  el.innerHTML=`<div class="th2" style="color:#4f46e5"><span class="wa" style="background:#4f46e5">i</span> Sheet updated</div><div class="body">${msg}</div>`;
+  wrap.appendChild(el);setTimeout(()=>{el.style.opacity=0;el.style.transition='.4s';setTimeout(()=>el.remove(),400);},4200);
+}
+
+/* ============ NAV / BOOT ============ */
+function go(v,btn){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('v-'+v).classList.add('active');
+  if(btn){document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+  if(v==='board')renderBoard();if(v==='detail')renderDetail();if(v==='pipeline')renderPipeline();if(v==='queue')renderQueue();
+}
+function switchUser(){CURRENT=document.getElementById('userSel').value;document.getElementById('roleP').textContent=userByEmail(CURRENT).role;refreshAll();}
+function refreshAll(){renderQueue();renderBoard();
+  if(document.getElementById('v-detail').classList.contains('active'))renderDetail();}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');}
+
+(function boot(){
+  document.getElementById('userSel').innerHTML=USERS.map(u=>`<option value="${u.email}">${u.name} — ${u.role}</option>`).join('');
+  document.getElementById('postSel').innerHTML=POSTS.map(p=>`<option value="${p.no}">${p.no} · ${p.program}</option>`).join('');
+  document.getElementById('roleP').textContent=userByEmail(CURRENT).role;
+  renderQueue();renderPipeline();
+})();
+</script>
+</body>
+</html>
